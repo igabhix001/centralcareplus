@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import { ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = '/api';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -161,9 +161,9 @@ export const chatbotApi = {
 
 // Dashboard API
 export const dashboardApi = {
-  getAdminStats: () => api.get<any>('/dashboard/admin'),
-  getDoctorStats: () => api.get<any>('/dashboard/doctor'),
-  getPatientStats: () => api.get<any>('/dashboard/patient'),
+  getAdminStats: () => api.get<any>('/dashboard?type=admin'),
+  getDoctorStats: () => api.get<any>('/dashboard?type=doctor'),
+  getPatientStats: () => api.get<any>('/dashboard?type=patient'),
 };
 
 // Appointments for today (Doctor)
@@ -179,7 +179,7 @@ export const auditLogsApi = {
 // Notifications API
 export const notificationsApi = {
   getAll: (params?: any) => api.get<any>('/notifications', { params }),
-  markAsRead: (id: string) => api.put<any>(`/notifications/${id}/read`),
+  markAsRead: (id: string) => api.put<any>(`/notifications/${id}`),
   markAllAsRead: () => api.put<any>('/notifications/read-all'),
   delete: (id: string) => api.delete<any>(`/notifications/${id}`),
 };

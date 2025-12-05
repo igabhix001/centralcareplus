@@ -23,12 +23,12 @@ A comprehensive, modern web-based Hospital Management System built with Next.js 
 - **Charts**: Recharts
 - **Styling**: MUI Theme + Tailwind CSS utilities
 
-### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
+### Backend (Integrated with Next.js API Routes)
+- **Runtime**: Node.js (Vercel Serverless)
+- **Framework**: Next.js API Routes
 - **ORM**: Prisma
-- **Database**: MongoDB
-- **Authentication**: JWT with jose
+- **Database**: MongoDB Atlas
+- **Authentication**: JWT
 - **Validation**: Zod
 
 ## Getting Started
@@ -58,40 +58,30 @@ npm run dev
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Backend Installation
+### Environment Setup
 
-1. Navigate to the backend folder:
+1. Copy the environment example file:
 ```bash
-cd backend
+cp .env.example .env.local
 ```
 
-2. Install backend dependencies:
-```bash
-npm install
+2. Edit `.env.local` with your values:
+```env
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/centralcareplus"
+JWT_SECRET="your-secure-jwt-secret"
 ```
 
-3. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your MongoDB connection string and JWT secret
-```
-
-4. Generate Prisma client:
+3. Generate Prisma client:
 ```bash
 npx prisma generate
 ```
 
-5. Seed the database (optional):
-```bash
-npm run seed
-```
-
-6. Run the backend development server:
+4. Run the development server:
 ```bash
 npm run dev
 ```
 
-The API will be available at [http://localhost:3001](http://localhost:3001).
+The app will be available at [http://localhost:3000](http://localhost:3000) with API routes at `/api/*`.
 
 ## Demo Credentials
 
@@ -217,45 +207,21 @@ This frontend is designed to work with a Node.js backend. The API client is conf
    - Go to [vercel.com](https://vercel.com)
    - Import your GitHub repository
    - Configure environment variables:
-     - `NEXT_PUBLIC_API_URL`: Your backend URL (e.g., `https://your-backend.railway.app/api`)
+     - `DATABASE_URL`: Your MongoDB Atlas connection string
+     - `JWT_SECRET`: A secure random string (min 32 characters)
+     - `GOOGLE_CLIENT_ID`: (Optional) For Google Fit integration
+     - `GOOGLE_CLIENT_SECRET`: (Optional) For Google Fit integration
 
 3. **Custom Domain** (Optional):
    - Add your domain in Vercel project settings
    - Configure DNS records as instructed
 
-### Backend Deployment (Railway)
-
-1. **Create Railway Account**: Go to [railway.app](https://railway.app)
-
-2. **Deploy from GitHub**:
-   - Connect your GitHub repository
-   - Select the `backend` folder as root directory
-   - Railway will auto-detect Node.js
-
-3. **Configure Environment Variables**:
-   ```
-   DATABASE_URL=mongodb+srv://...
-   JWT_SECRET=your-super-secure-jwt-secret-min-32-chars
-   NODE_ENV=production
-   PORT=3001
-   FRONTEND_URL=https://your-frontend.vercel.app
-   BACKEND_URL=https://your-backend.railway.app
-   GOOGLE_CLIENT_ID=your-google-client-id
-   GOOGLE_CLIENT_SECRET=your-google-client-secret
-   ```
-
-4. **Generate Prisma Client**:
-   - Railway will run `npm run build` which compiles TypeScript
-   - Add to package.json build script: `prisma generate && tsc`
-
-### Alternative: Backend on Render
-
-1. Create a new Web Service on [render.com](https://render.com)
-2. Connect your repository
-3. Configure:
-   - **Root Directory**: `backend`
-   - **Build Command**: `npm install && npx prisma generate && npm run build`
-   - **Start Command**: `npm start`
+### Why Vercel? (Free Tier Benefits)
+- **Frontend + Backend in one deployment** - No separate backend hosting needed
+- **Serverless API Routes** - Auto-scaling, no server management
+- **Free SSL** - HTTPS included
+- **Global CDN** - Fast worldwide access
+- **100GB bandwidth/month** - Generous free tier
 
 ### Database (MongoDB Atlas)
 
