@@ -154,6 +154,7 @@ export const googleFitApi = {
   getData: () => api.get<any>('/fit/data'),
   sync: () => api.post<any>('/fit/sync'),
   debug: () => api.get<any>('/fit/debug'),
+  fix: () => api.post<any>('/fit/fix'),
 };
 
 // Chatbot API

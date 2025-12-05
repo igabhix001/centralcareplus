@@ -128,6 +128,22 @@ function HealthDataContent() {
     }
   };
 
+  const handleFix = async () => {
+    try {
+      const response = await googleFitApi.fix() as any;
+      setDebugInfo(response);
+      if (response.success) {
+        setSnackbar({ open: true, message: 'Data cleaned up! Please reconnect Google Fit.', severity: 'success' });
+        setIsConnected(false);
+      } else {
+        setSnackbar({ open: true, message: response.error || 'Failed to fix data', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Fix failed:', error);
+      setSnackbar({ open: true, message: 'Failed to fix data', severity: 'error' });
+    }
+  };
+
   const handleSync = async () => {
     setSyncing(true);
     try {
@@ -237,7 +253,12 @@ function HealthDataContent() {
           <CardContent>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">Google Fit Debug Info</Typography>
-              <Button size="small" onClick={() => setShowDebug(false)}>Close</Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button size="small" color="warning" variant="contained" onClick={handleFix}>
+                  Fix Corrupted Data
+                </Button>
+                <Button size="small" onClick={() => setShowDebug(false)}>Close</Button>
+              </Box>
             </Box>
             <Box sx={{ 
               maxHeight: 300, 
