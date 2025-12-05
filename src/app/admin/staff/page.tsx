@@ -31,7 +31,7 @@ import {
 import { Add, Edit, Delete, Person, AdminPanelSettings } from '@mui/icons-material';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import PageHeader from '@/components/common/PageHeader';
-import { extendedAuthApi } from '@/lib/api';
+import { extendedAuthApi, api } from '@/lib/api';
 
 interface StaffUser {
   id: string;
@@ -66,9 +66,10 @@ export default function StaffManagementPage() {
   const fetchStaffUsers = async () => {
     setLoading(true);
     try {
-      // Staff list would require a dedicated endpoint
-      // For now, show empty - created staff can login immediately
-      setStaffUsers([]);
+      const response = await api.get<any>('/staff');
+      if (response.success) {
+        setStaffUsers(response.data || []);
+      }
     } catch (error) {
       console.error('Failed to fetch staff:', error);
     } finally {

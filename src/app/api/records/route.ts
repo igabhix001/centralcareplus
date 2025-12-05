@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     await requireRole(request, 'DOCTOR', 'SUPERADMIN', 'STAFF');
     const body = await request.json();
 
-    const { patientId, doctorId, diagnosis, symptoms, treatment, notes, attachments } = body;
+    const { patientId, doctorId, appointmentId, diagnosis, symptoms, notes, vitals } = body;
 
     if (!patientId || !doctorId || !diagnosis) {
       return errorResponse('Patient, doctor, and diagnosis are required', 400);
@@ -87,9 +87,11 @@ export async function POST(request: NextRequest) {
       data: {
         patientId,
         doctorId,
+        appointmentId,
         diagnosis,
         symptoms: symptoms || [],
         notes,
+        vitals,
       },
       include: {
         patient: {
@@ -104,6 +106,14 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Update appointment status if linked
+    if (appointmentId) {
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: 'COMPLETED' },
+      });
+    }
 
     return jsonResponse({ success: true, data: record }, 201);
   } catch (error: any) {

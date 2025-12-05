@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth, jsonResponse, errorResponse } from '@/lib/auth';
+import { createNotification } from '@/lib/notifications';
 
 // GET /api/appointments/[id]
 export async function GET(
@@ -122,6 +123,18 @@ export async function DELETE(
 
     const appointment = await prisma.appointment.findUnique({
       where: { id },
+      include: {
+        patient: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        doctor: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+      },
     });
 
     if (!appointment) {
@@ -132,6 +145,30 @@ export async function DELETE(
       where: { id },
       data: { status: 'CANCELLED' },
     });
+
+    // Send cancellation notifications
+    const formattedDate = appointment.scheduledAt.toLocaleDateString('en-IN', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+
+    // Notify patient
+    await createNotification(
+      appointment.patient.user.id,
+      'Appointment Cancelled',
+      `Your appointment with Dr. ${appointment.doctor.user.firstName} ${appointment.doctor.user.lastName} on ${formattedDate} has been cancelled`,
+      'APPOINTMENT_CANCELLED',
+      `/patient/appointments`
+    );
+
+    // Notify doctor
+    await createNotification(
+      appointment.doctor.user.id,
+      'Appointment Cancelled',
+      `Appointment with ${appointment.patient.user.firstName} ${appointment.patient.user.lastName} on ${formattedDate} has been cancelled`,
+      'APPOINTMENT_CANCELLED',
+      `/doctor/appointments`
+    );
 
     return jsonResponse({ success: true, message: 'Appointment cancelled' });
   } catch (error: any) {
