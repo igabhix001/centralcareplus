@@ -114,32 +114,11 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
 
-    // Fetch steps data
-    const stepsResponse = await fetch(
-      `https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          aggregateBy: [
-            {
-              dataTypeName: 'com.google.step_count.delta',
-              dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
-            },
-          ],
-          bucketByTime: { durationMillis: 86400000 }, // 1 day
-          startTimeMillis: startTime.getTime(),
-          endTimeMillis: endTime.getTime(),
-        }),
-      }
-    );
+    console.log('Fetching initial Google Fit data...');
 
-    // Fetch heart rate data
-    const heartRateResponse = await fetch(
-      `https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate`,
+    // Fetch ALL fitness data in a single request
+    const fitnessResponse = await fetch(
+      'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
       {
         method: 'POST',
         headers: {
@@ -148,9 +127,10 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
         },
         body: JSON.stringify({
           aggregateBy: [
-            {
-              dataTypeName: 'com.google.heart_rate.bpm',
-            },
+            { dataTypeName: 'com.google.step_count.delta' },
+            { dataTypeName: 'com.google.calories.expended' },
+            { dataTypeName: 'com.google.heart_rate.bpm' },
+            { dataTypeName: 'com.google.distance.delta' },
           ],
           bucketByTime: { durationMillis: 86400000 },
           startTimeMillis: startTime.getTime(),
@@ -159,91 +139,86 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
       }
     );
 
-    // Fetch calories data
-    const caloriesResponse = await fetch(
-      `https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          aggregateBy: [
-            {
-              dataTypeName: 'com.google.calories.expended',
-            },
-          ],
-          bucketByTime: { durationMillis: 86400000 },
-          startTimeMillis: startTime.getTime(),
-          endTimeMillis: endTime.getTime(),
-        }),
-      }
-    );
+    const fitnessData = await fitnessResponse.json();
 
-    const [stepsData, heartRateData, caloriesData] = await Promise.all([
-      stepsResponse.json(),
-      heartRateResponse.json(),
-      caloriesResponse.json(),
-    ]);
+    if (fitnessData.error) {
+      console.error('Google Fit API error:', fitnessData.error);
+      return;
+    }
 
-    // Process and store data
+    // Process data by date
     const dataByDate: { [key: string]: any } = {};
 
-    // Process steps
-    stepsData.bucket?.forEach((bucket: any) => {
-      const date = new Date(parseInt(bucket.startTimeMillis)).toISOString().split('T')[0];
-      const steps = bucket.dataset?.[0]?.point?.[0]?.value?.[0]?.intVal || 0;
-      if (!dataByDate[date]) dataByDate[date] = {};
-      dataByDate[date].steps = steps;
-    });
+    if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+      fitnessData.bucket.forEach((bucket: any) => {
+        const date = new Date(parseInt(bucket.startTimeMillis)).toISOString().split('T')[0];
+        if (!dataByDate[date]) {
+          dataByDate[date] = { steps: 0, calories: 0, heartRate: null, distance: 0 };
+        }
 
-    // Process heart rate
-    heartRateData.bucket?.forEach((bucket: any) => {
-      const date = new Date(parseInt(bucket.startTimeMillis)).toISOString().split('T')[0];
-      const heartRates = bucket.dataset?.[0]?.point?.map((p: any) => p.value?.[0]?.fpVal) || [];
-      if (heartRates.length > 0) {
-        const avgHeartRate = Math.round(heartRates.reduce((a: number, b: number) => a + b, 0) / heartRates.length);
-        if (!dataByDate[date]) dataByDate[date] = {};
-        dataByDate[date].heartRate = avgHeartRate;
-      }
-    });
-
-    // Process calories
-    caloriesData.bucket?.forEach((bucket: any) => {
-      const date = new Date(parseInt(bucket.startTimeMillis)).toISOString().split('T')[0];
-      const calories = bucket.dataset?.[0]?.point?.[0]?.value?.[0]?.fpVal || 0;
-      if (!dataByDate[date]) dataByDate[date] = {};
-      dataByDate[date].calories = Math.round(calories);
-    });
-
-    // Store in database
-    for (const [date, data] of Object.entries(dataByDate)) {
-      await prisma.googleFitData.upsert({
-        where: {
-          patientId_date: {
-            patientId,
-            date: new Date(date),
-          },
-        },
-        update: {
-          steps: data.steps || 0,
-          heartRate: data.heartRate || null,
-          calories: data.calories || 0,
-          sleepHours: null, // Google Fit sleep data requires different API
-          distance: null,
-        },
-        create: {
-          patientId,
-          date: new Date(date),
-          steps: data.steps || 0,
-          heartRate: data.heartRate || null,
-          calories: data.calories || 0,
-          sleepHours: null,
-          distance: null,
-        },
+        bucket.dataset?.forEach((dataset: any) => {
+          const dataType = dataset.dataSourceId?.split(':')[1] || '';
+          
+          dataset.point?.forEach((point: any) => {
+            if (dataType.includes('step_count') || dataset.dataSourceId?.includes('step')) {
+              point.value?.forEach((v: any) => {
+                dataByDate[date].steps += v.intVal || 0;
+              });
+            } else if (dataType.includes('calories') || dataset.dataSourceId?.includes('calories')) {
+              point.value?.forEach((v: any) => {
+                dataByDate[date].calories += Math.round(v.fpVal || 0);
+              });
+            } else if (dataType.includes('heart_rate') || dataset.dataSourceId?.includes('heart')) {
+              point.value?.forEach((v: any) => {
+                if (v.fpVal) {
+                  if (dataByDate[date].heartRate === null) {
+                    dataByDate[date].heartRate = Math.round(v.fpVal);
+                  } else {
+                    dataByDate[date].heartRate = Math.round((dataByDate[date].heartRate + v.fpVal) / 2);
+                  }
+                }
+              });
+            } else if (dataType.includes('distance') || dataset.dataSourceId?.includes('distance')) {
+              point.value?.forEach((v: any) => {
+                dataByDate[date].distance += v.fpVal || 0;
+              });
+            }
+          });
+        });
       });
     }
+
+    // Store in database
+    let syncedCount = 0;
+    for (const [date, data] of Object.entries(dataByDate)) {
+      if (data.steps > 0 || data.calories > 0 || data.heartRate || data.distance > 0) {
+        await prisma.googleFitData.upsert({
+          where: {
+            patientId_date: {
+              patientId,
+              date: new Date(date),
+            },
+          },
+          update: {
+            steps: data.steps,
+            heartRate: data.heartRate,
+            calories: data.calories,
+            distance: data.distance ? Math.round(data.distance) : null,
+          },
+          create: {
+            patientId,
+            date: new Date(date),
+            steps: data.steps,
+            heartRate: data.heartRate,
+            calories: data.calories,
+            distance: data.distance ? Math.round(data.distance) : null,
+          },
+        });
+        syncedCount++;
+      }
+    }
+
+    console.log('Initial sync complete:', syncedCount, 'days of data');
   } catch (error) {
     console.error('Failed to fetch Google Fit data:', error);
   }
