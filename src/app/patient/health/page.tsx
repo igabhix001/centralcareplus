@@ -116,9 +116,11 @@ function HealthDataContent() {
   const handleSync = async () => {
     setSyncing(true);
     try {
+      console.log('Manual sync triggered');
       await fetchHealthData();
       setSnackbar({ open: true, message: 'Health data synced!', severity: 'success' });
     } catch (error) {
+      console.error('Manual sync error:', error);
       setSnackbar({ open: true, message: 'Failed to sync data', severity: 'error' });
     } finally {
       setSyncing(false);

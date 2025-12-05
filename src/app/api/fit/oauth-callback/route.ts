@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Fetch initial data
+        console.log('Fetching initial Google Fit data for patient:', patient.id);
         await fetchAndStoreGoogleFitData(patient.id, tokens.access_token);
       }
     }
@@ -88,6 +89,12 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
   try {
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+
+    console.log('Fetching Google Fit data:', { 
+      patientId, 
+      startTime: startTime.toISOString(), 
+      endTime: endTime.toISOString() 
+    });
 
     // Fetch steps data
     const stepsResponse = await fetch(
@@ -111,6 +118,8 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
         }),
       }
     );
+
+    console.log('Steps API response status:', stepsResponse.status);
 
     // Fetch heart rate data
     const heartRateResponse = await fetch(
@@ -162,6 +171,12 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
       caloriesResponse.json(),
     ]);
 
+    console.log('Google Fit API responses:', {
+      stepsDataBuckets: stepsData.bucket?.length || 0,
+      heartRateDataBuckets: heartRateData.bucket?.length || 0,
+      caloriesDataBuckets: caloriesData.bucket?.length || 0,
+    });
+
     // Process and store data
     const dataByDate: { [key: string]: any } = {};
 
@@ -171,6 +186,7 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
       const steps = bucket.dataset?.[0]?.point?.[0]?.value?.[0]?.intVal || 0;
       if (!dataByDate[date]) dataByDate[date] = {};
       dataByDate[date].steps = steps;
+      console.log('Processed steps for', date, ':', steps);
     });
 
     // Process heart rate
