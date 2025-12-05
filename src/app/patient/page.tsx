@@ -63,21 +63,20 @@ export default function PatientDashboard() {
 
       if (aptsRes.success) setAppointments(aptsRes.data || []);
       if (rxRes.success) setPrescriptions(rxRes.data || []);
-      if (fitRes.success && fitRes.data) {
-        // Backend returns { success, data: { connected, data: [...] } }
-        const { connected, data: fitData } = fitRes.data;
-        const healthDataArray = Array.isArray(fitData) ? fitData : [];
-        setHealthData(healthDataArray);
-        setIsGoogleFitConnected(connected === true);
+      if (fitRes.success) {
+        // Backend returns { success, data: [...], connected: boolean }
+        const fitData = Array.isArray(fitRes.data) ? fitRes.data : [];
+        setHealthData(fitData);
+        setIsGoogleFitConnected((fitRes as any).connected === true);
         
         // Get today's stats
-        const today = healthDataArray[0] || {};
+        const today = fitData[0] || {};
         setStats({
           steps: today.steps || 0,
           heartRate: today.heartRate || 0,
           calories: today.calories || 0,
         });
-        console.log('Dashboard Google Fit:', { connected, dataCount: healthDataArray.length, todayStats: today });
+        console.log('Dashboard Google Fit:', { connected: (fitRes as any).connected, dataCount: fitData.length });
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);

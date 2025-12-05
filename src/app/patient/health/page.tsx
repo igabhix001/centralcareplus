@@ -88,14 +88,19 @@ function HealthDataContent() {
     try {
       const response = await googleFitApi.getData() as any;
       if (response.success && response.data) {
-        // Backend returns { success, data: { connected, data: [...] } }
-        const { connected, data: healthDataArray } = response.data;
+        // Backend returns { success, data: { connected, data: [...], error?, message? } }
+        const { connected, data: healthDataArray, error, message } = response.data;
         setHealthData(Array.isArray(healthDataArray) ? healthDataArray : []);
         setIsConnected(connected === true);
-        console.log('Google Fit data:', { connected, dataCount: healthDataArray?.length || 0 });
+        console.log('Google Fit data:', { connected, dataCount: healthDataArray?.length || 0, error, message });
+        
+        if (error) {
+          setSnackbar({ open: true, message: `Google Fit: ${error}`, severity: 'error' });
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch health data:', error);
+      setSnackbar({ open: true, message: 'Failed to load health data', severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -116,12 +121,25 @@ function HealthDataContent() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      console.log('Manual sync triggered');
-      await fetchHealthData();
-      setSnackbar({ open: true, message: 'Health data synced!', severity: 'success' });
-    } catch (error) {
-      console.error('Manual sync error:', error);
-      setSnackbar({ open: true, message: 'Failed to sync data', severity: 'error' });
+      const syncResponse = await googleFitApi.sync() as any;
+      if (syncResponse.success) {
+        setSnackbar({ 
+          open: true, 
+          message: syncResponse.data?.message || 'Health data synced!', 
+          severity: 'success' 
+        });
+        // Refresh data after sync
+        await fetchHealthData();
+      } else {
+        setSnackbar({ 
+          open: true, 
+          message: syncResponse.error || 'Failed to sync data', 
+          severity: 'error' 
+        });
+      }
+    } catch (error: any) {
+      console.error('Sync error:', error);
+      setSnackbar({ open: true, message: 'Failed to sync data from Google Fit', severity: 'error' });
     } finally {
       setSyncing(false);
     }

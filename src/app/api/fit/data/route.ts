@@ -14,63 +14,58 @@ export async function GET(request: NextRequest) {
     if (!patient) {
       return jsonResponse({ 
         success: true, 
-        data: { connected: false, data: [] } 
+        data: { connected: false, data: [], message: 'Patient not found' } 
       });
     }
 
     // Check if user has connected Google Fit
-    const fitToken = await prisma.googleFitToken.findUnique({
-      where: { patientId: patient.id },
-    });
+    let fitToken = null;
+    try {
+      fitToken = await prisma.googleFitToken.findUnique({
+        where: { patientId: patient.id },
+      });
+    } catch (e) {
+      console.log('GoogleFitToken table may not exist yet');
+    }
 
     if (!fitToken) {
-      // Return mock data for demo purposes
-      const mockData = generateMockHealthData();
       return jsonResponse({ 
         success: true, 
-        data: { connected: false, data: mockData } 
+        data: { connected: false, data: [], message: 'Not connected to Google Fit' } 
       });
     }
 
     // Get Google Fit data for this patient
-    const fitData = await prisma.googleFitData.findMany({
-      where: { patientId: patient.id },
-      orderBy: { date: 'desc' },
-      take: 30, // Last 30 days
-    });
+    let fitData: any[] = [];
+    try {
+      fitData = await prisma.googleFitData.findMany({
+        where: { patientId: patient.id },
+        orderBy: { date: 'desc' },
+        take: 30, // Last 30 days
+      });
+    } catch (e) {
+      console.log('GoogleFitData table may not exist yet');
+    }
 
     // If no data or token expired, try to refresh and fetch new data
     if (fitData.length === 0 || fitToken.expiresAt < new Date()) {
       try {
         await refreshTokenAndFetchData(patient.id, fitToken);
         // Refetch data after sync
-        const updatedFitData = await prisma.googleFitData.findMany({
+        fitData = await prisma.googleFitData.findMany({
           where: { patientId: patient.id },
           orderBy: { date: 'desc' },
           take: 30,
         });
-        
-        // If still no data after sync, return mock data but keep connected status
-        if (updatedFitData.length === 0) {
-          console.log('No real Google Fit data found, returning mock data for connected user');
-          const mockData = generateMockHealthData();
-          return jsonResponse({ 
-            success: true, 
-            data: { connected: true, data: mockData } 
-          });
-        }
-        
-        return jsonResponse({ 
-          success: true, 
-          data: { connected: true, data: updatedFitData } 
-        });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to refresh Google Fit data:', error);
-        // Return mock data but keep connected status
-        const mockData = generateMockHealthData();
         return jsonResponse({ 
           success: true, 
-          data: { connected: true, data: mockData } 
+          data: { 
+            connected: true, 
+            data: [], 
+            error: error.message || 'Failed to sync data from Google Fit'
+          } 
         });
       }
     }
@@ -84,7 +79,10 @@ export async function GET(request: NextRequest) {
       return errorResponse('Unauthorized', 401);
     }
     console.error('Get fit data error:', error);
-    return errorResponse('Failed to get health data', 500);
+    return jsonResponse({ 
+      success: false, 
+      data: { connected: false, data: [], error: error.message } 
+    });
   }
 }
 
@@ -229,23 +227,4 @@ async function fetchAndStoreGoogleFitData(patientId: string, accessToken: string
   }
 }
 
-function generateMockHealthData() {
-  const data = [];
-  const today = new Date();
-  
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      steps: Math.floor(Math.random() * 8000) + 4000,
-      heartRate: Math.floor(Math.random() * 30) + 60,
-      calories: Math.floor(Math.random() * 500) + 1500,
-      sleepHours: Math.round((Math.random() * 3 + 5) * 10) / 10,
-      distance: Math.round((Math.random() * 5 + 2) * 100) / 100,
-    });
-  }
-  
-  return data;
-}
+// No mock data - real Google Fit data only

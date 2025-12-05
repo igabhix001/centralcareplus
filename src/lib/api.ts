@@ -152,6 +152,7 @@ export const googleFitApi = {
   getAuthUrl: () => api.get<{ url: string }>('/fit/auth-url'),
   callback: (code: string) => api.get<any>('/fit/oauth-callback', { params: { code } }),
   getData: () => api.get<any>('/fit/data'),
+  sync: () => api.post<any>('/fit/sync'),
 };
 
 // Chatbot API
