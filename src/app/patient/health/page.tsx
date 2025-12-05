@@ -66,9 +66,18 @@ function HealthDataContent() {
     const error = searchParams.get('error');
     
     if (connected === 'true') {
+      // Store connection status in localStorage for demo purposes
+      localStorage.setItem('googleFitConnected', 'true');
       setSnackbar({ open: true, message: 'Google Fit connected successfully!', severity: 'success' });
+      setIsConnected(true);
     } else if (error) {
       setSnackbar({ open: true, message: 'Failed to connect Google Fit', severity: 'error' });
+    } else {
+      // Check localStorage for previous connection
+      const wasConnected = localStorage.getItem('googleFitConnected') === 'true';
+      if (wasConnected) {
+        setIsConnected(true);
+      }
     }
     
     fetchHealthData();
@@ -78,12 +87,12 @@ function HealthDataContent() {
     setLoading(true);
     try {
       const response = await googleFitApi.getData() as any;
-      if (response.success) {
-        // Backend returns { success, data: [...], connected: boolean }
-        const healthDataArray = Array.isArray(response.data) ? response.data : [];
-        setHealthData(healthDataArray);
-        setIsConnected(response.connected === true);
-        console.log('Google Fit data:', { connected: response.connected, dataCount: healthDataArray.length });
+      if (response.success && response.data) {
+        // Backend returns { success, data: { connected, data: [...] } }
+        const { connected, data: healthDataArray } = response.data;
+        setHealthData(Array.isArray(healthDataArray) ? healthDataArray : []);
+        setIsConnected(connected === true);
+        console.log('Google Fit data:', { connected, dataCount: healthDataArray?.length || 0 });
       }
     } catch (error) {
       console.error('Failed to fetch health data:', error);
