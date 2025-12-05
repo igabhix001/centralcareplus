@@ -54,8 +54,6 @@ function HealthDataContent() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [healthData, setHealthData] = useState<any[]>([]);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [showDebug, setShowDebug] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -112,35 +110,6 @@ function HealthDataContent() {
     } catch (error) {
       console.error('Failed to get auth URL:', error);
       setSnackbar({ open: true, message: 'Failed to connect to Google Fit', severity: 'error' });
-    }
-  };
-
-  const handleDebug = async () => {
-    try {
-      const response = await googleFitApi.debug() as any;
-      setDebugInfo(response);
-      setShowDebug(true);
-      console.log('Debug info:', response);
-    } catch (error) {
-      console.error('Debug failed:', error);
-      setDebugInfo({ error: 'Failed to get debug info' });
-      setShowDebug(true);
-    }
-  };
-
-  const handleFix = async () => {
-    try {
-      const response = await googleFitApi.fix() as any;
-      setDebugInfo(response);
-      if (response.success) {
-        setSnackbar({ open: true, message: 'Data cleaned up! Please reconnect Google Fit.', severity: 'success' });
-        setIsConnected(false);
-      } else {
-        setSnackbar({ open: true, message: response.error || 'Failed to fix data', severity: 'error' });
-      }
-    } catch (error) {
-      console.error('Fix failed:', error);
-      setSnackbar({ open: true, message: 'Failed to fix data', severity: 'error' });
     }
   };
 
@@ -235,47 +204,12 @@ function HealthDataContent() {
               </Button>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button variant="contained" startIcon={<LinkIcon />} onClick={handleConnect}>
-                Connect Google Fit
-              </Button>
-              <Button variant="outlined" size="small" onClick={handleDebug}>
-                Debug
-              </Button>
-            </Box>
+            <Button variant="contained" startIcon={<LinkIcon />} onClick={handleConnect}>
+              Connect Google Fit
+            </Button>
           )
         }
       />
-
-      {/* Debug Info Panel */}
-      {showDebug && debugInfo && (
-        <Card sx={{ mb: 3, bgcolor: 'grey.900' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Google Fit Debug Info</Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button size="small" color="warning" variant="contained" onClick={handleFix}>
-                  Fix Corrupted Data
-                </Button>
-                <Button size="small" onClick={() => setShowDebug(false)}>Close</Button>
-              </Box>
-            </Box>
-            <Box sx={{ 
-              maxHeight: 300, 
-              overflow: 'auto', 
-              bgcolor: 'grey.800', 
-              p: 2, 
-              borderRadius: 1,
-              fontFamily: 'monospace',
-              fontSize: '12px',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word'
-            }}>
-              {JSON.stringify(debugInfo, null, 2)}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
 
       {!isConnected ? (
         <Card sx={{ textAlign: 'center', py: 8 }}>
@@ -289,14 +223,9 @@ function HealthDataContent() {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
               Connect your Google Fit account to sync your health data and track your fitness progress.
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-              <Button variant="contained" size="large" startIcon={<LinkIcon />} onClick={handleConnect}>
-                Connect Google Fit
-              </Button>
-              <Button variant="outlined" onClick={handleDebug}>
-                Debug
-              </Button>
-            </Box>
+            <Button variant="contained" size="large" startIcon={<LinkIcon />} onClick={handleConnect}>
+              Connect Google Fit
+            </Button>
           </CardContent>
         </Card>
       ) : (
