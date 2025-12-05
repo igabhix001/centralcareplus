@@ -64,20 +64,15 @@ function HealthDataContent() {
     // Check for OAuth callback params
     const connected = searchParams.get('connected');
     const error = searchParams.get('error');
+    const details = searchParams.get('details');
+    const message = searchParams.get('message');
     
     if (connected === 'true') {
-      // Store connection status in localStorage for demo purposes
-      localStorage.setItem('googleFitConnected', 'true');
-      setSnackbar({ open: true, message: 'Google Fit connected successfully!', severity: 'success' });
-      setIsConnected(true);
+      setSnackbar({ open: true, message: 'Google Fit connected successfully! Click Sync Now to fetch your data.', severity: 'success' });
     } else if (error) {
-      setSnackbar({ open: true, message: 'Failed to connect Google Fit', severity: 'error' });
-    } else {
-      // Check localStorage for previous connection
-      const wasConnected = localStorage.getItem('googleFitConnected') === 'true';
-      if (wasConnected) {
-        setIsConnected(true);
-      }
+      const errorMsg = details || message || error;
+      setSnackbar({ open: true, message: `Failed to connect Google Fit: ${errorMsg}`, severity: 'error' });
+      console.error('OAuth error:', { error, details, message });
     }
     
     fetchHealthData();

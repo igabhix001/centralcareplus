@@ -25,6 +25,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log('OAuth callback - Starting token exchange');
+    console.log('Client ID exists:', !!GOOGLE_CLIENT_ID);
+    console.log('Client Secret exists:', !!GOOGLE_CLIENT_SECRET);
+    console.log('Redirect URI:', REDIRECT_URI);
+    console.log('State (userId):', state);
+
     // Exchange authorization code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -40,47 +46,66 @@ export async function GET(request: NextRequest) {
       }),
     });
 
+    const tokenData = await tokenResponse.json();
+    
     if (!tokenResponse.ok) {
-      throw new Error('Failed to exchange code for tokens');
+      console.error('Token exchange failed:', tokenData);
+      return NextResponse.redirect(`${baseUrl}/patient/health?error=token_exchange_failed&details=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
     }
 
-    const tokens = await tokenResponse.json();
+    console.log('Token exchange successful, access_token received');
     
     // Get user info from state parameter (passed during auth)
     const userId = state;
     
-    if (userId) {
-      // Find patient
-      const patient = await prisma.patient.findUnique({
-        where: { userId },
-      });
+    if (!userId) {
+      console.error('No userId in state parameter');
+      return NextResponse.redirect(`${baseUrl}/patient/health?error=no_user_state`);
+    }
 
-      if (patient) {
-        // Store tokens in database
-        await prisma.googleFitToken.upsert({
-          where: { patientId: patient.id },
-          update: {
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-          },
-          create: {
-            patientId: patient.id,
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-          },
-        });
+    // Find patient
+    const patient = await prisma.patient.findUnique({
+      where: { userId },
+    });
 
-        // Fetch initial data
-        await fetchAndStoreGoogleFitData(patient.id, tokens.access_token);
-      }
+    if (!patient) {
+      console.error('Patient not found for userId:', userId);
+      return NextResponse.redirect(`${baseUrl}/patient/health?error=patient_not_found`);
+    }
+
+    console.log('Patient found:', patient.id);
+
+    // Store tokens in database
+    await prisma.googleFitToken.upsert({
+      where: { patientId: patient.id },
+      update: {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+      },
+      create: {
+        patientId: patient.id,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+      },
+    });
+
+    console.log('Tokens stored in database');
+
+    // Fetch initial data
+    try {
+      await fetchAndStoreGoogleFitData(patient.id, tokenData.access_token);
+      console.log('Initial data fetched');
+    } catch (dataError) {
+      console.error('Failed to fetch initial data:', dataError);
+      // Continue anyway - user can sync later
     }
 
     return NextResponse.redirect(`${baseUrl}/patient/health?connected=true`);
-  } catch (error) {
+  } catch (error: any) {
     console.error('OAuth callback error:', error);
-    return NextResponse.redirect(`${baseUrl}/patient/health?error=oauth_failed`);
+    return NextResponse.redirect(`${baseUrl}/patient/health?error=oauth_failed&message=${encodeURIComponent(error.message || 'Unknown error')}`);
   }
 }
 
