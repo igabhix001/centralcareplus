@@ -8,7 +8,7 @@ const REDIRECT_URI = process.env.NEXT_PUBLIC_URL
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request);
+    const authUser = await requireAuth(request);
 
     if (!GOOGLE_CLIENT_ID) {
       return errorResponse('Google OAuth not configured', 500);
@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
       `&response_type=code` +
       `&scope=${encodeURIComponent(scopes.join(' '))}` +
       `&access_type=offline` +
-      `&prompt=consent`;
+      `&prompt=consent` +
+      `&state=${encodeURIComponent(authUser.userId)}`;
 
     return jsonResponse({ success: true, data: { url: authUrl } });
   } catch (error: any) {

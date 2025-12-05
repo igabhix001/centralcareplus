@@ -63,10 +63,6 @@ model Patient {
   emergencyPhone  String?
   insuranceId     String?
   
-  // Google Fit
-  googleFitConnected Boolean  @default(false)
-  googleFitToken     String?
-  
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -75,6 +71,8 @@ model Patient {
   medicalRecords  MedicalRecord[]
   prescriptions   Prescription[]
   invoices        Invoice[]
+  googleFitToken  GoogleFitToken?
+  googleFitData   GoogleFitData[]
 
   @@map("patients")
 }
@@ -227,20 +225,40 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-model GoogleFitData {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId   String   @db.ObjectId
+// Google Fit Integration
+model GoogleFitToken {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  patientId    String   @unique @db.ObjectId
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime
   
-  date        DateTime
-  steps       Int?
-  heartRate   Int?
-  calories    Int?
-  sleepHours  Float?
-  distance    Float?   // meters
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   
-  syncedAt    DateTime @default(now())
+  // Relations
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
-  @@unique([patientId, date])
+  @@map("google_fit_tokens")
+}
+
+model GoogleFitData {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  patientId  String    @db.ObjectId
+  date       DateTime
+  steps      Int       @default(0)
+  heartRate  Int?
+  calories   Int       @default(0)
+  sleepHours Float?
+  distance   Float?
+  
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  // Relations
+  patient    Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, date], name: "patientId_date")
   @@map("google_fit_data")
 }
 
@@ -316,7 +334,7 @@ enum InvoiceStatus {
 // Password Reset Tokens
 model PasswordReset {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @db.ObjectId
+  email       String
   token       String   @unique
   expiresAt   DateTime
   used        Boolean  @default(false)
