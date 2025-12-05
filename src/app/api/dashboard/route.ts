@@ -89,16 +89,25 @@ async function getDoctorDashboard(userId: string) {
     todayAppointments,
     pendingAppointments,
     completedAppointments,
+    recentPatients,
   ] = await Promise.all([
     prisma.appointment.groupBy({
       by: ['patientId'],
       where: { doctorId: doctor.id },
     }).then(r => r.length),
-    prisma.appointment.count({
+    prisma.appointment.findMany({
       where: {
         doctorId: doctor.id,
         scheduledAt: { gte: today, lt: tomorrow },
       },
+      include: {
+        patient: {
+          include: {
+            user: { select: { firstName: true, lastName: true, avatar: true } },
+          },
+        },
+      },
+      orderBy: { scheduledAt: 'asc' },
     }),
     prisma.appointment.count({
       where: {
@@ -112,6 +121,18 @@ async function getDoctorDashboard(userId: string) {
         status: 'COMPLETED',
       },
     }),
+    prisma.patient.findMany({
+      where: {
+        appointments: {
+          some: { doctorId: doctor.id },
+        },
+      },
+      include: {
+        user: { select: { firstName: true, lastName: true, avatar: true } },
+      },
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+    }),
   ]);
 
   return jsonResponse({
@@ -121,6 +142,7 @@ async function getDoctorDashboard(userId: string) {
       todayAppointments,
       pendingAppointments,
       completedAppointments,
+      recentPatients,
     },
   });
 }

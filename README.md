@@ -151,26 +151,35 @@ src/
 
 ## Environment Variables
 
-Create a `.env.local` file:
+Create a `.env.local` file (and `.env` for Prisma):
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001/api
-NEXT_PUBLIC_RASA_URL=http://localhost:5005
+# Required
+DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/centralcareplus
+JWT_SECRET=your-secure-jwt-secret-min-32-chars
+
+# Optional (for Google Fit integration)
 GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
-## Backend Integration
+**Note:** No `NEXT_PUBLIC_API_URL` needed - the app uses Next.js API Routes with relative URLs.
 
-This frontend is designed to work with a Node.js backend. The API client is configured to communicate with:
+## API Routes (Integrated Backend)
 
-- **Authentication:** `/auth/*`
-- **Patients:** `/patients/*`
-- **Doctors:** `/doctors/*`
-- **Appointments:** `/appointments/*`
-- **Medical Records:** `/records/*`
-- **Prescriptions:** `/prescriptions/*`
-- **Google Fit:** `/fit/*`
-- **Chatbot:** `/chatbot/query`
+All API routes are now integrated into Next.js under `/api/*`:
+
+- **Authentication:** `/api/auth/*`
+- **Patients:** `/api/patients/*`
+- **Doctors:** `/api/doctors/*`
+- **Appointments:** `/api/appointments/*`
+- **Medical Records:** `/api/records/*`
+- **Prescriptions:** `/api/prescriptions/*`
+- **Notifications:** `/api/notifications/*`
+- **Dashboard:** `/api/dashboard`
+- **Billing:** `/api/billing/*`
+- **Google Fit:** `/api/fit/*`
+- **Chatbot:** `/api/chatbot/query`
 
 ## New Features (v2.0)
 
