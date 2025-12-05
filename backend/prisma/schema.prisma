@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  STAFF
+  DOCTOR
+  PATIENT
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  email         String    @unique
+  password      String
+  role          UserRole
+  firstName     String
+  lastName      String
+  phone         String?
+  avatar        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  patient       Patient?
+  doctor        Doctor?
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Patient {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @unique @db.ObjectId
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  dateOfBirth     DateTime
+  gender          Gender
+  bloodGroup      String?
+  address         String?
+  emergencyContact String?
+  emergencyPhone  String?
+  insuranceId     String?
+  
+  // Google Fit
+  googleFitConnected Boolean  @default(false)
+  googleFitToken     String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  appointments    Appointment[]
+  medicalRecords  MedicalRecord[]
+  prescriptions   Prescription[]
+  invoices        Invoice[]
+
+  @@map("patients")
+}
+
+model Doctor {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @unique @db.ObjectId
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  specialization  String
+  licenseNumber   String    @unique
+  experience      Int       // Years of experience
+  consultationFee Float
+  bio             String?
+  education       String[]
+  languages       String[]
+  
+  // Availability
+  availableDays   String[]  // ["Monday", "Tuesday", ...]
+  availableFrom   String    // "09:00"
+  availableTo     String    // "17:00"
+  slotDuration    Int       @default(30) // minutes
+  
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  appointments    Appointment[]
+  medicalRecords  MedicalRecord[]
+  prescriptions   Prescription[]
+
+  @@map("doctors")
+}
+
+model Appointment {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  patientId       String            @db.ObjectId
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  doctorId        String            @db.ObjectId
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  
+  scheduledAt     DateTime
+  duration        Int               @default(30) // minutes
+  type            String            // "checkup", "followup", "consultation", "emergency"
+  status          AppointmentStatus @default(SCHEDULED)
+  
+  symptoms        String?
+  notes           String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  medicalRecord   MedicalRecord?
+
+  @@map("appointments")
+}
+
+model MedicalRecord {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  patientId       String       @db.ObjectId
+  patient         Patient      @relation(fields: [patientId], references: [id])
+  doctorId        String       @db.ObjectId
+  doctor          Doctor       @relation(fields: [doctorId], references: [id])
+  appointmentId   String?      @unique @db.ObjectId
+  appointment     Appointment? @relation(fields: [appointmentId], references: [id])
+  
+  diagnosis       String
+  symptoms        String[]
+  notes           String?
+  vitals          Vitals?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  attachments     Attachment[]
+  prescription    Prescription?
+
+  @@map("medical_records")
+}
+
+type Vitals {
+  bloodPressure   String?  // "120/80"
+  heartRate       Int?     // bpm
+  temperature     Float?   // Celsius
+  weight          Float?   // kg
+  height          Float?   // cm
+  oxygenLevel     Int?     // percentage
+}
+
+model Prescription {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  patientId       String        @db.ObjectId
+  patient         Patient       @relation(fields: [patientId], references: [id])
+  doctorId        String        @db.ObjectId
+  doctor          Doctor        @relation(fields: [doctorId], references: [id])
+  recordId        String?       @unique @db.ObjectId
+  record          MedicalRecord? @relation(fields: [recordId], references: [id])
+  
+  medications     Medication[]
+  instructions    String?
+  validUntil      DateTime
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("prescriptions")
+}
+
+type Medication {
+  name        String
+  dosage      String
+  frequency   String
+  duration    String
+  notes       String?
+}
+
+model Attachment {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  recordId        String        @db.ObjectId
+  record          MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  
+  fileName        String
+  fileType        String
+  fileSize        Int
+  filePath        String
+  
+  uploadedAt      DateTime      @default(now())
+
+  @@map("attachments")
+}
+
+model AuditLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  
+  action      String
+  entity      String
+  entityId    String?
+  details     String?
+  ipAddress   String?
+  
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model GoogleFitData {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  patientId   String   @db.ObjectId
+  
+  date        DateTime
+  steps       Int?
+  heartRate   Int?
+  calories    Int?
+  sleepHours  Float?
+  distance    Float?   // meters
+  
+  syncedAt    DateTime @default(now())
+
+  @@unique([patientId, date])
+  @@map("google_fit_data")
+}
+
+// Notifications System
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  
+  title       String
+  message     String
+  type        NotificationType
+  isRead      Boolean  @default(false)
+  link        String?  // Optional link to related resource
+  
+  createdAt   DateTime @default(now())
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  APPOINTMENT_REMINDER
+  APPOINTMENT_CONFIRMED
+  APPOINTMENT_CANCELLED
+  PRESCRIPTION_READY
+  LAB_RESULTS
+  PAYMENT_DUE
+  PAYMENT_RECEIVED
+  GENERAL
+}
+
+// Billing System
+model Invoice {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  patientId       String        @db.ObjectId
+  patient         Patient       @relation(fields: [patientId], references: [id])
+  appointmentId   String?       @db.ObjectId
+  
+  invoiceNumber   String        @unique
+  items           InvoiceItem[]
+  subtotal        Float
+  tax             Float         @default(0)
+  discount        Float         @default(0)
+  total           Float
+  
+  status          InvoiceStatus @default(PENDING)
+  dueDate         DateTime
+  paidAt          DateTime?
+  paymentMethod   String?
+  
+  notes           String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("invoices")
+}
+
+type InvoiceItem {
+  description   String
+  quantity      Int
+  unitPrice     Float
+  total         Float
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+// Password Reset Tokens
+model PasswordReset {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  token       String   @unique
+  expiresAt   DateTime
+  used        Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+
+  @@map("password_resets")
+}

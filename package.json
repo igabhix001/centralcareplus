@@ -1,0 +1,43 @@
+{
+  "name": "centralcareplus",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.15.6",
+    "@mui/material": "^5.15.6",
+    "@mui/x-data-grid": "^6.19.2",
+    "@mui/x-date-pickers": "^6.19.2",
+    "@tanstack/react-query": "^5.17.19",
+    "axios": "^1.6.7",
+    "dayjs": "^1.11.10",
+    "next": "14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.12.0",
+    "zustand": "^4.5.0",
+    "react-hook-form": "^7.49.3",
+    "@hookform/resolvers": "^3.3.4",
+    "zod": "^3.22.4",
+    "jose": "^5.2.2",
+    "cookies-next": "^4.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.10",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.1.0",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3"
+  }
+}
