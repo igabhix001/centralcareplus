@@ -126,7 +126,20 @@ export async function POST(request: NextRequest) {
     const authUser = await requireAuth(request);
     const body = await request.json();
 
-    const { patientId, doctorId, scheduledAt, type, notes } = body;
+    let { patientId, doctorId, scheduledAt, type, notes } = body;
+
+    // For patient portal bookings, derive patientId from the authenticated user
+    if (authUser.role === 'PATIENT') {
+      const patient = await prisma.patient.findUnique({
+        where: { userId: authUser.userId },
+      });
+
+      if (!patient) {
+        return errorResponse('Patient profile not found', 404);
+      }
+
+      patientId = patient.id;
+    }
 
     if (!patientId || !doctorId || !scheduledAt) {
       return errorResponse('Patient, doctor, and scheduled time are required', 400);
@@ -154,12 +167,14 @@ export async function POST(request: NextRequest) {
       return errorResponse('This time slot is already booked', 409);
     }
 
+    const normalizedType = (type || 'CONSULTATION');
+
     const appointment = await prisma.appointment.create({
       data: {
         patientId,
         doctorId,
         scheduledAt: new Date(scheduledAt),
-        type: type || 'CONSULTATION',
+        type: normalizedType,
         notes,
         status: 'SCHEDULED',
       },
@@ -200,7 +215,7 @@ export async function POST(request: NextRequest) {
     await createNotification(
       appointment.doctor.user.id,
       'New Appointment',
-      `New ${type || 'consultation'} appointment with ${appointment.patient.user.firstName} ${appointment.patient.user.lastName} on ${formattedDate}`,
+      `New ${normalizedType.toLowerCase()} appointment with ${appointment.patient.user.firstName} ${appointment.patient.user.lastName} on ${formattedDate}`,
       'APPOINTMENT_CONFIRMED',
       `/doctor/appointments`
     );
